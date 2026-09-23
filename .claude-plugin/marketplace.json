@@ -1,0 +1,19 @@
+{
+  "name": "jira-tools",
+  "owner": {
+    "name": "Tushar Aggarwal",
+    "url": "https://github.com/aggtushar123"
+  },
+  "description": "Jira automation for Claude Code",
+  "plugins": [
+    {
+      "name": "jira-automation",
+      "source": "./",
+      "description": "Create and manage Jira Cloud tickets from Claude Code — from a design doc, or from the diff you just wrote.",
+      "version": "1.0.0",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["jira", "atlassian", "tickets", "agile"]
+    }
+  ]
+}

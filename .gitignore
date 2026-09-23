@@ -1,0 +1,7 @@
+.DS_Store
+*.log
+node_modules/
+
+# Never commit a discovered config — it contains your cloudId and project layout
+jira-automation.config.json
+config.json
