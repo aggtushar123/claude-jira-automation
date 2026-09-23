@@ -86,7 +86,7 @@ through it on first use:
 ```
 The Atlassian connector is authenticated as:
 
-  Jai Kumar Rathore <jai@example.com>
+  Jane Doe <jane@example.com>
 
 Every ticket this skill creates will permanently carry this account as its
 reporter. Jira cannot change a reporter after the fact.
