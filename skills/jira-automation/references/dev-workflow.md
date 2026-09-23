@@ -136,7 +136,8 @@ commit SHA on the ticket instead.
 
 ## Confirmation
 
-Everything here still goes through the confirm gate in `SKILL.md`. Show the proposed
+Everything here still goes through both gates in `SKILL.md` — the identity check
+before the first write of the session, then the per-ticket confirm. Show the proposed
 ticket — type, project, summary, description — and wait. The user is mid-task; a
 surprise ticket on the team board is worse than a slow one.
 

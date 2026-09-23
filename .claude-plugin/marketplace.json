@@ -10,7 +10,7 @@
       "name": "jira-automation",
       "source": "./",
       "description": "Create and manage Jira Cloud tickets from Claude Code — from a design doc, or from the diff you just wrote.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "license": "MIT",
       "category": "productivity",
       "keywords": ["jira", "atlassian", "tickets", "agile"]

@@ -21,7 +21,46 @@ Two entry points, same confirm gate:
   becomes a ticket. See `references/dev-workflow.md`; this is the common case when
   working in a repo.
 
-## Before anything else: load config
+## Before anything else
+
+Two checks, in this order: **who is connected**, then **what the instance looks like**.
+
+### 1. The user must be onboarded
+
+**There is no default user.** A fresh install is bound to no account, and every write —
+create, comment, transition — is blocked until the person using the skill has
+authenticated and claimed that identity themselves.
+
+Jira takes the **reporter** from the authenticated account, provides no API to set it,
+and lets most roles change it never. Inheriting whatever account happens to be
+connected is how tickets end up permanently filed under a colleague's name. So the
+skill does not inherit — it onboards.
+
+Once per session, before the first write:
+
+```
+atlassianUserInfo()
+```
+
+| State | Do this |
+|---|---|
+| No config, or `config.account` is `null` | Run `references/onboarding.md`. **Block all writes until it completes.** |
+| `account_id` matches `config.account.accountId` | Proceed silently. Don't mention it again this session. |
+| `account_id` **differs** | The binding is broken. Set `config.account` to `null` and re-run `references/onboarding.md`. |
+
+A mismatch is not a warning to click through. The connector now authenticates as
+somebody else, so the skill is no longer bound to anyone — it is back to its
+uninitialized state and must be onboarded again.
+
+Never resolve this from the git author, the Claude account email, the repo owner, or a
+name that merely looks right. Those are separate identity systems and they disagree
+routinely. Only `atlassianUserInfo()` plus the user's own explicit confirmation counts.
+
+The check is read-only and costs one call. Never skip it to save a round trip, and
+never read the account from the config alone — the config records what *was* confirmed,
+the connector reports who is *actually* authenticated.
+
+### 2. Load config
 
 Jira instances differ in ways that silently break automation — custom field IDs,
 issue type naming, which fields a project even accepts. This skill resolves all of
@@ -29,8 +68,8 @@ that **once** and caches it.
 
 Read `~/.claude/jira-automation/config.json`.
 
-- **Exists** → use it. Every value you need (cloudId, project keys, field IDs, type
-  names, priorities) is in there.
+- **Exists** → use it. Every value you need (account, cloudId, project keys, field IDs,
+  type names, priorities) is in there.
 - **Missing, or the user's target project isn't in it** → run
   `references/setup.md` first. It's a few read-only API calls and one file write.
 
@@ -117,6 +156,7 @@ createJiraIssue(
   summary="Build training data pipeline",
   description="<markdown>",
   parent="PROJ-12",
+  assignee_account_id=<config.defaultAssignee>,
   additional_fields={
     "<config.projects.PROJ.fields.storyPoints>": 8,
     "priority": {"name": "High"},
@@ -124,6 +164,21 @@ createJiraIssue(
   }
 )
 ```
+
+### Reporter vs. assignee
+
+The **reporter** is always the connected account — the API gives no way to set it, and
+most Jira roles can't change it afterward. That's why onboarding gates every write.
+
+The **assignee** is settable and entirely separate. `config.defaultAssignee` starts
+`null`, meaning tickets are created unassigned. Set it only when the user explicitly
+asks for automatic assignment, via
+`lookupJiraAccountId(cloudId, searchString=<name>)`.
+
+It is **not** a workaround for the wrong account being connected, and must never be
+offered as one — assigning a ticket to the right person doesn't make the wrong
+person's name on it correct. When the connected account isn't the user, the answer is
+re-authentication, not assignment.
 
 Descriptions default to Markdown (`contentFormat="markdown"`). Write real structure —
 a user-story line, acceptance criteria, technical notes. Most instances have no
@@ -152,6 +207,7 @@ before retrying a failed create.
 
 ## References
 
+- `references/onboarding.md` — authenticating the user; run before any write
 - `references/setup.md` — first-run discovery, config schema
 - `references/dev-workflow.md` — tickets from a diff, branch, bug, or stack trace
 - `references/plan-parsing.md` — decomposition heuristics, description templates
