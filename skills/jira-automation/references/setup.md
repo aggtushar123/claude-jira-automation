@@ -110,8 +110,8 @@ valid state:
   "discoveredAt": "2026-01-15",
   "account": {
     "accountId": "712020:00000000-0000-0000-0000-000000000000",
-    "displayName": "Jai Kumar Rathore",
-    "email": "jai@example.com",
+    "displayName": "Jane Doe",
+    "email": "jane@example.com",
     "confirmedAt": "2026-01-15"
   },
   "defaultAssignee": null,
