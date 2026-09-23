@@ -11,7 +11,7 @@ The field ID is wrong for this project, or the field isn't on the create screen.
 common cause: an ID copied from another instance or another project. IDs collide
 across sites — `customfield_10033` is Story Points on some and the built-in Design
 field on others — so a copied ID can succeed and write to the wrong field. Re-run discovery
-(`setup.md` step 3) for this project and use what it returns. If the field genuinely
+(`setup.md` step 4) for this project and use what it returns. If the field genuinely
 isn't on the create screen, create the issue without it and set it with `editJiraIssue`
 afterward.
 
@@ -61,11 +61,47 @@ parent must be an epic.
 The parent key is wrong, or the parent create silently failed earlier in the run. Stop
 and check what was actually created before continuing.
 
-## Auth and connection
+## Auth and identity
+
+**Tickets are created under the wrong person's name**
+
+The connector is authenticated as whoever authorized it, and the create API offers no
+way to set a reporter. A machine someone else configured, a shared Claude account, or a
+browser still signed in as a colleague all produce this. Most Jira roles cannot change
+a reporter after the fact, so the tickets usually have to be closed and refiled.
+
+Onboarding exists to make this impossible — writes are blocked until the user claims
+the authenticated identity. Reaching this state means onboarding was bypassed, or
+`config.account` was filled in from something other than
+`references/onboarding.md`.
+
+Fix: set `config.account` to `null`, then run `references/onboarding.md` from the top.
+Don't patch the account block by hand — the point of the flow is the user's explicit
+confirmation, and editing the file around it recreates the bug.
+
+**Skill refuses to create anything, says the user isn't onboarded**
+
+Working as designed. `config.account` is `null`, so no user is bound. Run
+`references/onboarding.md`. This is also the expected state right after a connector is
+disconnected and reconnected.
+
+**Onboarding keeps showing the same wrong account after re-authenticating**
+
+The browser was already signed in to Atlassian as that person, so the OAuth
+re-authorization completed silently without a login screen. Disconnect again and
+reconnect from a private window.
+
+Also confirm Claude Code was restarted — the connector identity is cached for the
+session.
 
 **No Atlassian tools available**
 
 The connector isn't set up. See the README — this skill has no fallback path.
+
+**`atlassianUserInfo` errors or returns nothing**
+
+Not connected, or the token expired. Reconnect before anything else — every other
+call will fail too.
 
 **`getAccessibleAtlassianResources` returns `[]`**
 
@@ -99,8 +135,9 @@ duplicates the successful half. Resume from the failure.
 
 To confirm the connector and config still line up:
 
-1. `getAccessibleAtlassianResources()` — does the cloudId still match the config?
-2. `getVisibleJiraProjects(action="create")` — is the target project still listed?
-3. `getJiraIssueTypeMetaWithFields(...)` — do the cached field IDs still appear?
+1. `atlassianUserInfo()` — does `account_id` still match `config.account.accountId`?
+2. `getAccessibleAtlassianResources()` — does the cloudId still match the config?
+3. `getVisibleJiraProjects(action="create")` — is the target project still listed?
+4. `getJiraIssueTypeMetaWithFields(...)` — do the cached field IDs still appear?
 
 A mismatch at any step means re-run discovery for that project.

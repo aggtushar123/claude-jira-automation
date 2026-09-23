@@ -41,6 +41,8 @@ memory. This skill closes that gap. Planning and ticketing happen in the same se
 - **Won't duplicate.** Checks your branch name and recent commits for an existing issue
   key first. If you're on `PROJ-123-fix-auth`, it comments on that ticket instead of
   opening a second one.
+- **Won't file as the wrong person.** No default user — writes are blocked until you
+  authenticate and claim the connected account yourself, re-checked every session.
 - **Manages existing tickets.** Comments, transitions, edits, JQL search.
 - **Confirms before writing.** Nothing reaches your team's board without you seeing it
   first.
@@ -49,7 +51,8 @@ memory. This skill closes that gap. Planning and ticketing happen in the same se
 
 - **Claude Code**
 - **The Atlassian MCP connector**, connected to a Jira **Cloud** site with
-  `write:jira-work` scope
+  `write:jira-work` scope — authorized with **your own** Atlassian account, since
+  that's the account every ticket will be reported by
 
 Jira Server and Data Center are **not supported** — they use a different auth model
 and a field schema this skill doesn't target.
@@ -74,9 +77,44 @@ cp -r claude-jira-automation/skills/jira-automation ~/.claude/skills/
 
 ## First run
 
-On first use the skill discovers your Jira instance and caches what it finds to
+### Onboarding: there is no default user
+
+A fresh install is bound to **nobody**. It will not create, comment on, or transition
+anything until you authenticate and claim the identity yourself. The skill walks you
+through it on first use:
+
+```
+The Atlassian connector is authenticated as:
+
+  Jai Kumar Rathore <jai@example.com>
+
+Every ticket this skill creates will permanently carry this account as its
+reporter. Jira cannot change a reporter after the fact.
+
+Is this your account?
+```
+
+Answer **no** and it stops — no tickets, no discovery, nothing written — and walks you
+through re-authenticating (`/mcp`, or claude.ai → Settings → Connectors). There is no
+"continue anyway"; using the skill as somebody else is the outcome onboarding exists to
+prevent.
+
+This matters because **the connector authenticates as whoever authorized it, not
+whoever is typing.** On a machine a colleague set up, or a shared Claude account, the
+naive behavior is to silently file everything under their name — and Jira gives most
+roles no way to change a reporter afterward. Those tickets have to be closed and
+refiled.
+
+Once claimed, the binding is saved and checked each session. If the connector later
+changes hands, the binding is void and you onboard again rather than being asked to
+wave it through.
+
+### Then it discovers your instance
+
+Once you're onboarded, the skill caches what it finds to
 `~/.claude/jira-automation/config.json`:
 
+- The account you claimed — `null` until you do
 - Your cloudId and site URL
 - Which projects you can create issues in
 - The exact issue type names per project
@@ -90,8 +128,8 @@ Points might be `customfield_10016` on your site and `customfield_10033` on some
 else's. Automation that hardcodes them returns `201 Created` with a blank field, and
 you don't notice until standup. The config is discovered, never assumed.
 
-The config is machine-local and gitignored. It holds no credentials — just IDs and
-field names.
+The config is machine-local and gitignored. It holds no credentials — just IDs, field
+names, and the account you confirmed.
 
 ## Usage
 
@@ -146,8 +184,9 @@ Issues are created parent-first so each child has a real key to link against.
 
 ```
 skills/jira-automation/
-├── SKILL.md                      entry point, confirm gate, creation rules
+├── SKILL.md                      entry point, onboarding + confirm gates, creation rules
 └── references/
+    ├── onboarding.md             authenticate the user; blocks writes until bound
     ├── setup.md                  discovery routine + config schema
     ├── plan-parsing.md           epic/story/subtask heuristics, templates
     ├── dev-workflow.md           tickets from diffs, branches, stack traces
@@ -166,12 +205,22 @@ Anything your team can see requires explicit confirmation: creating issues, post
 comments, transitioning tickets. Jira has no hard delete, so a wrong ticket is a
 cleanup task for a human.
 
+Identity is bound by onboarding and re-checked before the first write of each session,
+because a ticket filed under the wrong reporter can't be corrected by most Jira roles —
+it has to be closed and refiled. An unonboarded install is inert.
+
 If a batch create fails halfway, the skill reports exactly which keys exist and which
 didn't, and resumes from the failure rather than re-running the whole batch.
 
 ## Limitations
 
 - **Jira Cloud only.** No Server/DC support.
+- **Can't set the reporter.** The Jira API assigns it from the authenticated account.
+  Onboarding makes sure you know who that is before anything is written, but if the
+  wrong account is connected the only fix is reconnecting as yourself.
+- **Can't authenticate for you.** Connecting and re-authenticating the Atlassian
+  connector is something you do in `/mcp` or on claude.ai. The skill detects the state
+  and guides you; it can't perform the OAuth step.
 - **Won't invent required fields.** If your project requires a custom field only a
   human can decide, it asks.
 - **Nonstandard workflows and validators will reject tickets.** The skill makes correct
@@ -190,6 +239,9 @@ The usual ones:
 
 | Symptom | Cause |
 |---|---|
+| Refuses to create anything, says you aren't onboarded | Working as designed — no user bound yet |
+| Tickets filed under someone else's name | Connector authorized by another account — re-auth via `/mcp` |
+| Re-auth keeps landing on the same account | Browser already signed in — use a private window |
 | `Field 'customfield_X' cannot be set` | Stale config — re-run discovery |
 | `Field 'priority' cannot be set` | Team-managed project with no priority field |
 | `Specify a valid issue type` | `Sub-task` vs `Subtask` spelling |
